@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Generator</title>
+</head>
+<body>
+
+    <div id="container-start"></div>
+    <button onclick="addField()">Add Field</button>
+    <button onclick="addFieldAttribute()">Add Attribute</button>
+    <button onclick="saveFormData()">Save Data</button>
+    <pre><div id="form-container"></div></pre>
+
+
+    <script>
+        "use strict";
+        // Define the FieldInterface
+        const FieldInterface = {
+            required: {},
+            optional: {},
+            tag: String,
+            type: String,
+            attributes: Object,
+            text: String,
+            options: Array,
+
+        };
+
+        class InterfaceChecker {
+            static implements(_interface, _descriptors, _class) {
+                const requiredProps = Object.keys(_interface.required);
+                const optionalProps = Object.keys(_interface.optional);
+                const descriptors = Object.getOwnPropertyDescriptors(_interface);
+                const errMsg = `${_class} wrongly implements interface,`;
+
+                requiredProps.forEach((prop) => {
+                    if (!_descriptors[prop]) {
+                        throw new Error(`${errMsg} ${prop} not available on class`);
+                    }
+
+                    if (typeof descriptors[prop].value !== typeof _descriptors[prop].value) {
+                        throw new Error(`${errMsg} type must be ${typeof descriptors[prop].value}`);
+                    }
+                });
+
+                optionalProps.forEach((prop) => {
+                    // Allow for undefined or null values in optional properties
+                    if (descriptors[prop] && ![undefined, null].includes(descriptors[prop].value)) {
+                            const expectedType = typeof _class.prototype[prop];
+                            const actualType = typeof descriptors[prop].value;
+
+                            if (expectedType !== 'object' && expectedType !== actualType) {
+                                    console.warn(`${errMsg} type should be ${expectedType}, but got ${actualType}`);
+                                }
+                            }
+                    });
+
+            }
+        }
+
+        // Define the Field class that implements the FieldInterface
+        class Field {
+
+            constructor(fieldData) {
+
+                // Assign field data to properties, and validate them against the interface
+                for (let prop in fieldData) {
+
+                    if (!this.hasOwnProperty(prop)) {
+                        throw new Error(`Invalid property ${prop} on Field instance`);
+                    }
+                    this[prop] = fieldData[prop];
+                    
+                }
+                console.log(fieldData)
+                InterfaceChecker.implements(FieldInterface, Object.getOwnPropertyDescriptors(this), this.constructor.name);
+            }
+
+            tag = '';
+            type = '';
+            attributes = {};
+            text = '';
+            options = [];
+            
+        }
+
+        // Define the FormGenerator class that manages form generation
+        class FormGenerator {
+            constructor(formContainerId) {
+                this.fieldCount = 0; // keeps track of the number of fields in the form
+                this.formContainer = document.getElementById(formContainerId); // gets a reference to the form container div
+            }
+
+            addField(fieldData) {
+                const field = new Field(fieldData);
+
+                let element;
+                switch (field.tag || field.type) {
+                    case 'span':
+                        const spanElement = document.createElement('span');
+                        for (let attribute in field.attributes) {
+                            spanElement[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+                        }
+                        spanElement.textContent = field.text;
+                        element = spanElement;
+                        break;
+                    case 'select':
+                        const selectElement = document.createElement('select');
+                        for (let option of field.options) {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.attributes.value;
+                            optionElement.textContent = option.attributes.text;
+                            if (option.attributes.selected) {
+                                optionElement.selected = true; // set the selected attribute if specified by the user
+                            }
+                            selectElement.appendChild(optionElement);
+                        }
+                        element = selectElement;
+                        break;
+                    case 'textarea':
+                        const textareaElement = document.createElement('textarea');
+                        for (let attribute in field.attributes) {
+                            textareaElement[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+                        }
+                        element = textareaElement;
+                        break;
+                    case 'label':
+                        const labelElement = document.createElement('label');
+                        for (let attribute in field.attributes) {
+                            labelElement[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+                        }
+                        labelElement.textContent = field.text;
+                        element = labelElement;
+                        break;
+                    case 'input':
+                    case 'radio':
+                    case 'checkbox':
+                        const inputElement = document.createElement('input');
+                        inputElement.type = field.type;
+                        for (let attribute in field.attributes) {
+                            inputElement[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+                        }
+                        element = inputElement;
+                        break;
+                    default:
+                        const defaultInputElement = document.createElement(field.tag);
+                        for (let attribute in field.attributes) {
+                            defaultInputElement[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+                        }
+                        element = defaultInputElement;
+                }
+
+                if (element) {
+                    element.name = field.attributes && field.attributes.name || `field${this.fieldCount++}`;
+                    this.formContainer.appendChild(element);
+                }
+            }
+
+
+            generateFormFromData(data) {
+                // Generate form fields based on JSON data
+                for (let fieldData of data) {
+                    this.addField(fieldData);
+                }
+            }
+        }
+
+
+
+    //    let fieldCount = 0; // keeps track of the number of fields in the form
+    //     const formContainer = document.getElementById('form-container'); // gets a reference to the form container div
+
+    //     function addField(field) {
+    //         let input;
+    //         if (field.type === 'select') {
+    //             input = document.createElement('select');
+    //             for (let option of field.options) {
+    //                 const optionElement = document.createElement('option');
+    //                 optionElement.value = option.attributes.value;
+    //                 optionElement.textContent = option.attributes.text;
+    //                 if (option.attributes.selected) {
+    //                     optionElement.selected = true; // set the selected attribute if specified by the user
+    //                 }
+    //                 input.appendChild(optionElement);
+    //             }
+    //         } else if (field.type === 'textarea') {
+    //             input = document.createElement('textarea');
+    //         } else {
+    //             input = document.createElement('input');
+    //             input.type = field.type;
+    //         }
+
+    //         input.name = field.attributes && field.attributes.name || `field${fieldCount++}`;
+
+    //         if (field.attributes && typeof field.attributes === 'object') {
+    //             for (let attribute in field.attributes) {
+    //                 input[attribute] = field.attributes[attribute]; // set additional attributes as specified by the user
+    //             }
+    //         }
+
+    //         formContainer.appendChild(input);
+    //     }
+
+        // const data = [
+        //     { tag: 'span', attributes: { name: 'test', class: 'row' }, text: 'test' },
+        //     { type: 'input', attributes: { name: 'test', class: 'row' } },
+        //     { type: 'input', attributes: { name: 'test2', class: 'row' } },
+        //     {
+        //         type: 'select',
+        //         attributes: { name: 'ofselect', class: 'select' },
+        //         options: [
+        //             { attributes: { value: '1', text: 'Number 1' } },
+        //             { attributes: { value: '2', text: 'Number 2', selected: true } }, // set the selected option by specifying the "selected" attribute
+        //         ],
+        //     },
+        //     { type: 'textarea', attributes: { name: 'textarea' } },
+        //     { type: 'radio', attributes: { name: 'radio1', id:'html' } },
+        //     { tag: 'label', attributes: { for: 'html', class: 'row' }, text: 'test' },
+        //     { type: 'radio', attributes: { name: 'radio1' } },
+        //     { type: 'radio', attributes: { name: 'radio1', checked:true } },
+        //     { type: 'checkbox', attributes: { name: 'checkbox1', id:'html5' } },
+        //     { tag: 'label', attributes: { for: 'html5', class: 'row' }, text: 'test' },
+        //     { type: 'checkbox', attributes: { name: 'checkbox1' } },
+        //     { type: 'checkbox', attributes: { name: 'checkbox1', checked:true } }
+        // ];
+
+        const data = [
+            {tag: 'span', text: 'Select of Input'},
+            {tag: 'br'},
+            {
+                tag: 'select', type: 'select',
+                attributes:{name:'createFields',},
+                options:[
+                    {tag: 'option', attributes:{value: 'span', text: 'span'}},
+                    {tag: 'option', attributes:{value: 'label', text: 'label'}},
+                    {tag: 'option', attributes:{value: 'input', text: 'input'}},
+                    {tag: 'option', attributes:{value: 'select', text: 'select'}},
+                    {tag: 'option', attributes:{value: 'textarea', text: 'textarea'}},
+                    {tag: 'option', attributes:{value: 'radio', text: 'radio'}},
+                    {tag: 'option', attributes:{value: 'checkbox', text: 'checkbox'}},
+                ],
+            },
+
+
+        ];
+
+        // // generate form fields based on the JSON data
+        // for (let field of data) {
+        //     addField(field);
+        // }
+        const formContainer = new FormGenerator('container-start');
+        formContainer.generateFormFromData(data);    
+
+        const addField = () => {
+            let el = document.querySelector('select[name=createFields]').value;
+
+            if (el === 'span' || el === 'label') {
+                el = [{ tag: el }];
+            } else {
+                el = [{ tag: el, type: el }];
+            }
+
+            let container = new FormGenerator('form-container');
+
+            // Capture all selected attributes and their values
+            const attributeSelectors = document.querySelectorAll('#container-start select[name=attrName]');
+            const attributeValueInputs = document.querySelectorAll('#container-start input[name=attrValue]');
+
+            let attributes = {};
+            for (let i = 0; i < attributeSelectors.length; i++) {
+                const attrName = attributeSelectors[i].value;
+                const attrValue = attributeValueInputs[i].value;
+
+                // Only add the attribute if it has a non-empty value
+                if (attrName && attrValue) {
+                attributes[attrName] = attrValue;
+                }
+
+            }
+
+            // Apply the selected attributes to the new field
+            el[0].attributes = attributes;
+            console.log(attributes)
+
+            if (Object.keys(attributes).includes('text')) {
+                el[0].text = attributes.text; // this { tag: 'span', text: 'Text' } ?
+            }
+            
+            container.generateFormFromData(el);
+        };
+
+
+         const addFieldAttribute = () => { 
+
+            const data = [
+                {tag: 'hr'},
+                {tag: 'span', text: 'Name of Attribute' },
+                {tag: 'select', type: 'select', attributes: {name:'attrName', placeholder: 'title' },
+                options:[
+                    {tag: 'option', attributes:{value: 'text', text: 'text'}},
+                    {tag: 'option', attributes:{value: 'name', text: 'name'}}, 
+                    {tag: 'option', attributes:{value: 'value', text: 'value'}}, 
+                    {tag: 'option', attributes:{value: 'placeholder', text: 'placeholder'}}, 
+                    {tag: 'option', attributes:{value: 'required', text: 'required'}}, 
+                    {tag: 'option', attributes:{value: 'readonly', text: 'readonly'}}, 
+                    {tag: 'option', attributes:{value: 'disabled', text: 'disabled'}},
+                    {tag: 'option', attributes:{value: 'checked', text: 'checked'}},
+                    {tag: 'option', attributes:{value: 'selected', text: 'selected'}},
+                    {tag: 'option', attributes:{value: 'title', text: 'title'}},  
+                    {tag: 'option', attributes:{value: 'multiple', text: 'multiple'}},  
+                    {tag: 'option', attributes:{value: 'size', text: 'size'}},  
+                    {tag: 'option', attributes:{value: 'id', text: 'id'}},  
+                    {tag: 'option', attributes:{value: 'class', text: 'class'}},  
+                    {tag: 'option', attributes:{value: 'style', text: 'style'}},    
+                    {tag: 'option', attributes:{value: 'lang', text: 'lang'}},  
+                    {tag: 'option', attributes:{value: 'dir', text: 'disabled'}},
+                    {tag: 'option', attributes:{value: 'autocomplete', text: 'autocomplete'}},   
+                    {tag: 'option', attributes:{value: 'min', text: 'min'}},  
+                    {tag: 'option', attributes:{value: 'max', text: 'max'}},  
+                    {tag: 'option', attributes:{value: 'pattern', text: 'pattern'}},  
+                    {tag: 'option', attributes:{value: 'autofocus', text: 'autofocus'}},   
+                ]   
+            },
+                {tag: 'br'},
+                {tag: 'span', text: 'Value of Attribute'},
+                {tag: 'input', type: 'input', attributes: {name:'attrValue', placeholder:'test'}},
+            ]
+
+            let container = new FormGenerator('container-start');
+            container.generateFormFromData(data);
+           
+
+            //alert(el)
+        }
+
+            
+
+        function elementToJson(element) {
+            const data = {tag: element.tagName.toLowerCase()};
+
+            // Add attributes as properties to the object
+            for (let i = 0; i < element.attributes.length; i++) {
+                const attribute = element.attributes[i];
+                data[attribute.name] = attribute.value;
+            }
+
+            // If the element has children, add them as an array of objects
+            if (element.children.length > 0) {
+                data.children = [];
+                    for (let i = 0; i < element.children.length; i++) {
+                        const childData = elementToJson(element.children[i]);
+                        data.children.push(childData);
+                    }
+            }
+
+            return data;
+        }
+
+
+
+
+
+        function saveFormData() {
+            // Get the container element and convert it to JSON
+            const container = document.getElementById('form-container');
+            const jsonData = elementToJson(container);
+            console.log(JSON.stringify(jsonData, null, 2));
+
+            // const formElements = formContainer.getElementsByTagName('input');
+            // for (let i = 0; i < formElements.length; i++) {
+            //     const element = formElements[i];
+            //     localStorage.setItem(element.name, element.value); // saves each field's value with its name as the key
+            // }
+            localStorage.setItem('form', JSON.stringify(jsonData)); // saves each field's value with its name as the key
+        }
+
+    </script>
+</body>
+</html>
